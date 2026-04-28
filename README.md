@@ -39,10 +39,10 @@
 
 ### 下载
 
-- 从[Release页面](https://github.com/rhys1/llama_GUI/releases)下载最新版本的可执行文件。
+- 从[Release页面]下载最新版本的可执行文件。
 - 或clone仓库到本地：
 ```bash
-git clone https://github.com/rhys1/llama_GUI.git
+git clone https://github.com/RhysZhang1/llama_GUI.git
 ```
 
 ### 编译要求
@@ -138,7 +138,7 @@ f16
 ## 系统要求
 
 ### 运行要求
-- 下载并解压对应的Llama.cpp版本（使用英伟达GPU注意需要安装CUDA驱动）（详见[llama.cpp 官方仓库](https://github.com/llama-cpp/llama.cpp)）
+- 下载并解压对应的Llama.cpp版本（使用英伟达GPU注意需要安装CUDA驱动）（详见[llama.cpp 官方仓库](https://github.com/ggml-org/llama.cpp)）
 - 将llama-cli.exe添加到环境变量PATH中
 - 相应的模型文件
 - 足够的内存和磁盘空间
