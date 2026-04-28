@@ -1,7 +1,7 @@
 # Llama GUI 
 
-一个简单易用的Llama模型启动和转换工具，支持Windows平台。
-由AI主导编写。
+一个简单易用的Llama.cpp启动和转换工具，支持Windows平台。
+由AI主导编写,非官方
 
 ## 功能特点
 
