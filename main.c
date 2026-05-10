@@ -29,6 +29,10 @@
 #define ID_BUTTON_CONVERT_MODEL 301
 #define ID_BUTTON_CONVERT_LORA 302
 #define ID_EDIT_OUTTYPE 401
+#define ID_EDIT_LLAMA_PATH 402
+#define ID_EDIT_MODEL_SRC_PATH 403
+#define ID_EDIT_LORA_SRC_PATH 404
+#define ID_EDIT_MODEL_DST_PATH 405
 
 // 模型结构
 typedef struct {
@@ -52,6 +56,10 @@ HWND hComboCommand, hComboModel, hEditCtxSize, hEditNgl, hEditTemp, hEditRepeatP
 
 // 转换窗口控件
 HWND hEditOuttype;
+HWND hEditLlamaPath;
+HWND hEditModelSrcPath;
+HWND hEditLoraSrcPath;
+HWND hEditModelDstPath;
 
 // 标签句柄
 HWND hLabelCommand, hLabelModel, hLabelCtxSize, hLabelNgl, hLabelTemp, hLabelRepeatPenalty, hLabelN, hLabelPort, hLabelMli, hLabelOtherParams, hLabelParamHelp, hLabelHelp;
@@ -288,7 +296,7 @@ void ExecuteCommand(const char* cmd, HWND hwnd, const char* commandType, const c
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     
-    if (strcmp(commandType, "llama-server") == 0) {
+    if (strcmp(commandType, "网页") == 0) {
         Sleep(3000);
         char url[256];
         snprintf(url, sizeof(url), "http://127.0.0.1:%s", port);
@@ -308,32 +316,76 @@ LRESULT CALLBACK ConvertWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
                 GB2312_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                 DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
             
-            AddControl(hwnd, L"--outtype:", 100, 40, 100, 25);
+            // llama.cpp路径
+            AddControl(hwnd, L"llama.cpp路径:", 20, 20, 120, 25);
+            wchar_t wLlamaPath[512];
+            MultiByteToWideChar(CP_UTF8, 0, g_llamaPath, -1, wLlamaPath, sizeof(wLlamaPath));
+            hEditLlamaPath = CreateEditBox(hwnd, wLlamaPath, 150, 20, 350, 25, ID_EDIT_LLAMA_PATH);
+            
+            // 模型文件路径
+            AddControl(hwnd, L"模型文件路径:", 20, 55, 120, 25);
+            wchar_t wModelSrcPath[512];
+            MultiByteToWideChar(CP_UTF8, 0, g_modelSrcPath, -1, wModelSrcPath, sizeof(wModelSrcPath));
+            hEditModelSrcPath = CreateEditBox(hwnd, wModelSrcPath, 150, 55, 350, 25, ID_EDIT_MODEL_SRC_PATH);
+            
+            // lora文件路径
+            AddControl(hwnd, L"lora文件路径:", 20, 90, 120, 25);
+            wchar_t wLoraSrcPath[512];
+            MultiByteToWideChar(CP_UTF8, 0, g_loraSrcPath, -1, wLoraSrcPath, sizeof(wLoraSrcPath));
+            hEditLoraSrcPath = CreateEditBox(hwnd, wLoraSrcPath, 150, 90, 350, 25, ID_EDIT_LORA_SRC_PATH);
+            
+            // 转换后模型存储路径
+            AddControl(hwnd, L"输出路径:", 20, 125, 120, 25);
+            wchar_t wModelDstPath[512];
+            MultiByteToWideChar(CP_UTF8, 0, g_modelDstPath, -1, wModelDstPath, sizeof(wModelDstPath));
+            hEditModelDstPath = CreateEditBox(hwnd, wModelDstPath, 150, 125, 350, 25, ID_EDIT_MODEL_DST_PATH);
+            
+            // outtype参数
+            AddControl(hwnd, L"--outtype:", 20, 160, 120, 25);
             wchar_t wOuttype[64];
             MultiByteToWideChar(CP_UTF8, 0, g_outtype, -1, wOuttype, sizeof(wOuttype));
-            hEditOuttype = CreateEditBox(hwnd, wOuttype, 220, 40, 150, 25, ID_EDIT_OUTTYPE);
+            hEditOuttype = CreateEditBox(hwnd, wOuttype, 150, 160, 150, 25, ID_EDIT_OUTTYPE);
             
+            // 转换按钮
             HWND hButtonModel = CreateWindowExW(0, L"BUTTON", L"转换模型",
                 WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                50, 100, 200, 40, hwnd, (HMENU)ID_BUTTON_CONVERT_MODEL, NULL, NULL);
+                50, 205, 200, 40, hwnd, (HMENU)ID_BUTTON_CONVERT_MODEL, NULL, NULL);
             SendMessageW(hButtonModel, WM_SETFONT, (WPARAM)hFont, TRUE);
             
             HWND hButtonLora = CreateWindowExW(0, L"BUTTON", L"转换lora",
                 WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                280, 100, 200, 40, hwnd, (HMENU)ID_BUTTON_CONVERT_LORA, NULL, NULL);
+                280, 205, 200, 40, hwnd, (HMENU)ID_BUTTON_CONVERT_LORA, NULL, NULL);
             SendMessageW(hButtonLora, WM_SETFONT, (WPARAM)hFont, TRUE);
             break;
         }
         
         case WM_COMMAND: {
             if (LOWORD(wParam) == ID_BUTTON_CONVERT_MODEL && HIWORD(wParam) == BN_CLICKED) {
+                // 读取所有输入框内容
                 wchar_t wOuttype[64];
+                wchar_t wLlamaPath[512];
+                wchar_t wModelSrcPath[512];
+                wchar_t wModelDstPath[512];
                 GetWindowTextW(hEditOuttype, wOuttype, sizeof(wOuttype)/sizeof(wchar_t));
+                GetWindowTextW(hEditLlamaPath, wLlamaPath, sizeof(wLlamaPath)/sizeof(wchar_t));
+                GetWindowTextW(hEditModelSrcPath, wModelSrcPath, sizeof(wModelSrcPath)/sizeof(wchar_t));
+                GetWindowTextW(hEditModelDstPath, wModelDstPath, sizeof(wModelDstPath)/sizeof(wchar_t));
                 
+                // 转换为多字节
                 char outtype[64];
+                char llamaPath[512];
+                char modelSrcPath[512];
+                char modelDstPath[512];
                 WideCharToMultiByte(CP_UTF8, 0, wOuttype, -1, outtype, sizeof(outtype), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wLlamaPath, -1, llamaPath, sizeof(llamaPath), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wModelSrcPath, -1, modelSrcPath, sizeof(modelSrcPath), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wModelDstPath, -1, modelDstPath, sizeof(modelDstPath), NULL, NULL);
                 
+                // 保存到全局变量和配置文件
                 strcpy(g_outtype, outtype);
+                strcpy(g_llamaPath, llamaPath);
+                strcpy(g_modelSrcPath, modelSrcPath);
+                strcpy(g_modelDstPath, modelDstPath);
                 SaveConvertConfig();
                 
                 char cmd[4096];
@@ -346,13 +398,36 @@ LRESULT CALLBACK ConvertWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
                 CreateProcessA(NULL, fullCmd, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
                 PostMessageW(hwnd, WM_CLOSE, 0, 0);
             } else if (LOWORD(wParam) == ID_BUTTON_CONVERT_LORA && HIWORD(wParam) == BN_CLICKED) {
+                // 读取所有输入框内容
                 wchar_t wOuttype[64];
+                wchar_t wLlamaPath[512];
+                wchar_t wModelSrcPath[512];
+                wchar_t wLoraSrcPath[512];
+                wchar_t wModelDstPath[512];
                 GetWindowTextW(hEditOuttype, wOuttype, sizeof(wOuttype)/sizeof(wchar_t));
+                GetWindowTextW(hEditLlamaPath, wLlamaPath, sizeof(wLlamaPath)/sizeof(wchar_t));
+                GetWindowTextW(hEditModelSrcPath, wModelSrcPath, sizeof(wModelSrcPath)/sizeof(wchar_t));
+                GetWindowTextW(hEditLoraSrcPath, wLoraSrcPath, sizeof(wLoraSrcPath)/sizeof(wchar_t));
+                GetWindowTextW(hEditModelDstPath, wModelDstPath, sizeof(wModelDstPath)/sizeof(wchar_t));
                 
+                // 转换为多字节
                 char outtype[64];
+                char llamaPath[512];
+                char modelSrcPath[512];
+                char loraSrcPath[512];
+                char modelDstPath[512];
                 WideCharToMultiByte(CP_UTF8, 0, wOuttype, -1, outtype, sizeof(outtype), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wLlamaPath, -1, llamaPath, sizeof(llamaPath), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wModelSrcPath, -1, modelSrcPath, sizeof(modelSrcPath), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wLoraSrcPath, -1, loraSrcPath, sizeof(loraSrcPath), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0, wModelDstPath, -1, modelDstPath, sizeof(modelDstPath), NULL, NULL);
                 
+                // 保存到全局变量和配置文件
                 strcpy(g_outtype, outtype);
+                strcpy(g_llamaPath, llamaPath);
+                strcpy(g_modelSrcPath, modelSrcPath);
+                strcpy(g_loraSrcPath, loraSrcPath);
+                strcpy(g_modelDstPath, modelDstPath);
                 SaveConvertConfig();
                 
                 char cmd[4096];
@@ -778,41 +853,40 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                 BOOL configExists = LoadConvertConfig();
                 PostMessageW(hwnd, WM_CLOSE, 0, 0);
                 
-                if (configExists) {
-                    const wchar_t* CONVERT_CLASS_NAME = L"LlamaConvertClass";
-                    
-                    WNDCLASSEXW wcConvert = {0};
-                    wcConvert.cbSize = sizeof(WNDCLASSEXW);
-                    wcConvert.lpfnWndProc = ConvertWindowProc;
-                    wcConvert.hInstance = NULL;
-                    wcConvert.lpszClassName = CONVERT_CLASS_NAME;
-                    wcConvert.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-                    wcConvert.hCursor = LoadCursor(NULL, IDC_ARROW);
-                    
-                    if (!RegisterClassExW(&wcConvert)) {
-                        MessageBoxW(NULL, L"注册转换窗口类失败！", L"错误", MB_ICONERROR);
-                        return 0;
-                    }
-                    
-                    hConvertWindow = CreateWindowExW(
-                        0,
-                        CONVERT_CLASS_NAME,
-                        L"Llama 转换",
-                        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-                        CW_USEDEFAULT, CW_USEDEFAULT, 530, 200,
-                        NULL, NULL, NULL, NULL);
-                    
-                    ShowWindow(hConvertWindow, SW_SHOW);
-                    UpdateWindow(hConvertWindow);
-                    
-                    MSG msg = {0};
-                    while (GetMessage(&msg, NULL, 0, 0)) {
-                        TranslateMessage(&msg);
-                        DispatchMessage(&msg);
-                    }
-                    
-                    UnregisterClassW(CONVERT_CLASS_NAME, NULL);
+                // 无论配置文件是否存在，都打开转换窗口
+                const wchar_t* CONVERT_CLASS_NAME = L"LlamaConvertClass";
+                
+                WNDCLASSEXW wcConvert = {0};
+                wcConvert.cbSize = sizeof(WNDCLASSEXW);
+                wcConvert.lpfnWndProc = ConvertWindowProc;
+                wcConvert.hInstance = NULL;
+                wcConvert.lpszClassName = CONVERT_CLASS_NAME;
+                wcConvert.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+                wcConvert.hCursor = LoadCursor(NULL, IDC_ARROW);
+                
+                if (!RegisterClassExW(&wcConvert)) {
+                    MessageBoxW(NULL, L"注册转换窗口类失败！", L"错误", MB_ICONERROR);
+                    return 0;
                 }
+                
+                hConvertWindow = CreateWindowExW(
+                    0,
+                    CONVERT_CLASS_NAME,
+                    L"Llama 转换",
+                    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+                    CW_USEDEFAULT, CW_USEDEFAULT, 530, 280,
+                    NULL, NULL, NULL, NULL);
+                
+                ShowWindow(hConvertWindow, SW_SHOW);
+                UpdateWindow(hConvertWindow);
+                
+                MSG msg = {0};
+                while (GetMessage(&msg, NULL, 0, 0)) {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+                
+                UnregisterClassW(CONVERT_CLASS_NAME, NULL);
             }
             break;
         }
