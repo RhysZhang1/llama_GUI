@@ -213,16 +213,16 @@ void LoadConfig(char* commandType, char* model, char* ctxSize, char* ngl,
 void SaveConvertConfig() {
     FILE* fp = fopen(CONVERT_CONFIG_FILE, "w");
     if (fp) {
+        fprintf(fp, "# outtype参数\n");
+        fprintf(fp, "%s\n", g_outtype);
         fprintf(fp, "# llama.cpp路径\n");
         fprintf(fp, "%s\n", g_llamaPath);
         fprintf(fp, "# 模型文件路径\n");
         fprintf(fp, "%s\n", g_modelSrcPath);
-        fprintf(fp, "# lora文件路径\n");
-        fprintf(fp, "%s\n", g_loraSrcPath);
         fprintf(fp, "# 转换后模型存储路径\n");
         fprintf(fp, "%s\n", g_modelDstPath);
-        fprintf(fp, "# outtype参数\n");
-        fprintf(fp, "%s\n", g_outtype);
+        fprintf(fp, "# lora文件路径\n");
+        fprintf(fp, "%s\n", g_loraSrcPath);
         fclose(fp);
     }
 }
@@ -240,15 +240,15 @@ BOOL LoadConvertConfig() {
             }
             if (strlen(buffer) > 0) {
                 if (lineCount == 0) {
-                    strcpy(g_llamaPath, buffer);
+                    strcpy(g_outtype, buffer);
                 } else if (lineCount == 1) {
-                    strcpy(g_modelSrcPath, buffer);
+                    strcpy(g_llamaPath, buffer);
                 } else if (lineCount == 2) {
-                    strcpy(g_loraSrcPath, buffer);
+                    strcpy(g_modelSrcPath, buffer);
                 } else if (lineCount == 3) {
                     strcpy(g_modelDstPath, buffer);
                 } else if (lineCount == 4) {
-                    strcpy(g_outtype, buffer);
+                    strcpy(g_loraSrcPath, buffer);
                 }
                 lineCount++;
             }
@@ -262,7 +262,7 @@ BOOL LoadConvertConfig() {
         MultiByteToWideChar(CP_UTF8, 0, CONVERT_CONFIG_FILE, -1, wFileName, sizeof(wFileName));
         
         wchar_t wMsg[512];
-        swprintf(wMsg, sizeof(wMsg), L"已创建%s文件，请先配置路径！", wFileName);
+        swprintf(wMsg, sizeof(wMsg), L"请在转化前配置路径！");
         MessageBoxW(NULL, wMsg, L"提示", MB_OK);
         return FALSE;
     }
