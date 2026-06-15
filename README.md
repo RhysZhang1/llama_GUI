@@ -1,6 +1,8 @@
 # Llama GUI v2
 
-一个基于纯 C + Win32 API 编写的 [llama.cpp](https://github.com/ggml-org/llama.cpp) 图形化启动与转换工具。无需手动记忆和输入冗长的命令行参数，通过简洁的窗口界面即可配置并运行 llama-cli / llama-server，以及转换 HuggingFace 模型为 GGUF 格式。
+一个基于纯 C + Win32 API 编写的 [llama.cpp](https://github.com/ggml-org/llama.cpp) 图形化启动与转换工具。
+由AI辅助编写
+无需手动记忆和输入冗长的命令行参数，通过简洁的窗口界面即可配置并运行 llama-cli / llama-server，以及转换 HuggingFace 模型为 GGUF 格式。
 
 ## 目录
 
