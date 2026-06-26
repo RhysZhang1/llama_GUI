@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llama_gui_wsl</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #1a1b26; color: #c0caf5; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+}
+a { color: #7aa2f7; }
+.header { width:100%;max-width:900px;padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between; }
+.header h1 { font-size:1.6rem;color:#bb9af7; }
+.header .ver { font-size:.75rem;color:#565f89; }
+.header .status { display:flex;align-items:center;gap:8px; }
+.header .status-dot { width:10px;height:10px;border-radius:50%; }
+.status-dot.on { background:#9ece6a;box-shadow:0 0 6px #9ece6a; }
+.status-dot.off { background:#565f89; }
+.tabs { display:flex;gap:2px;width:100%;max-width:900px;padding:16px 24px 0;flex-wrap:wrap; }
+.tab { padding:10px 22px;border:none;cursor:pointer;background:#24283b;color:#9aa5ce;border-radius:8px 8px 0 0;font-size:.9rem;transition:.15s; }
+.tab:hover { background:#2f3548;color:#c0caf5; }
+.tab.active { background:#2f3548;color:#7aa2f7;font-weight:600; }
+.main { width:100%;max-width:900px;padding:24px;background:#24283b;border-radius:0 8px 8px 8px;flex:1;margin-bottom:24px; }
+.panel { display:none; }
+.panel.active { display:block; }
+.form-group { margin-bottom:16px; }
+.form-row { display:flex;gap:16px;flex-wrap:wrap; }
+.form-col { flex:1;min-width:180px; }
+label { display:block;font-size:.82rem;color:#9aa5ce;margin-bottom:4px; }
+input,select,textarea { width:100%;padding:8px 12px;border:1px solid #3b4261;background:#1a1b26;color:#c0caf5;border-radius:6px;font-size:.88rem;font-family:inherit; }
+input:focus,select:focus,textarea:focus { outline:none;border-color:#7aa2f7;box-shadow:0 0 0 2px rgba(122,162,247,.2); }
+textarea { resize:vertical;min-height:80px;font-family:'Cascadia Code','Fira Code',monospace; }
+select { cursor:pointer; }
+.check-row { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
+.check-row input[type="checkbox"] { width:auto;accent-color:#7aa2f7; }
+.check-row label { margin:0;cursor:pointer;font-size:.88rem;color:#c0caf5; }
+.btn { padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:500;transition:.15s;display:inline-flex;align-items:center;gap:6px; }
+.btn-primary { background:#7aa2f7;color:#1a1b26; }.btn-primary:hover { background:#89b4fa; }
+.btn-success { background:#9ece6a;color:#1a1b26; }.btn-success:hover { background:#b9f27c; }
+.btn-danger { background:#f7768e;color:#1a1b26; }.btn-danger:hover { background:#ff9eac; }
+.btn-secondary { background:#3b4261;color:#c0caf5; }.btn-secondary:hover { background:#4e5579; }
+.btn-sm { padding:4px 12px;font-size:.78rem; }
+.btn:disabled { opacity:.5;cursor:not-allowed; }
+.btns { display:flex;gap:10px;margin-top:16px;flex-wrap:wrap; }
+.cmd-preview { background:#1a1b26;border:1px solid #3b4261;border-radius:6px;padding:12px;margin-top:12px;font-family:'Cascadia Code','Fira Code',monospace;font-size:.82rem;color:#9ece6a;white-space:pre-wrap;word-break:break-all;min-height:40px;max-height:200px;overflow-y:auto; }
+.cmd-preview[contenteditable="true"] { color:#7dcfff;border-color:#7aa2f7; }
+.help-box { background:#1a1b26;border:1px solid #3b4261;border-radius:6px;padding:14px;font-size:.78rem;color:#9aa5ce;max-height:240px;overflow-y:auto;white-space:pre-wrap;line-height:1.5; }
+.log-box { background:#1a1b26;border:1px solid #3b4261;border-radius:6px;padding:14px;font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;color:#9aa5ce;max-height:300px;overflow-y:auto;white-space:pre-wrap; }
+.model-list { display:flex;gap:16px; }
+.model-list-left { width:220px; }
+.model-list-right { flex:1; }
+.model-list-left select { height:240px;overflow-y:auto;border-radius:6px;background:#1a1b26;border:1px solid #3b4261;color:#c0caf5; }
+.msg { padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:.85rem; }
+.msg-ok { background:#1e4020;color:#9ece6a;border:1px solid #2e6030; }
+.msg-err { background:#401e20;color:#f7768e;border:1px solid #602e30; }
+
+@media (max-width:600px) {
+  .form-row { flex-direction:column; }
+  .tabs { gap:0; }
+  .tab { font-size:.78rem;padding:8px 14px; }
+  .model-list { flex-direction:column; }
+  .model-list-left { width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div><h1>🦙 llama_gui_wsl</h1><span class="ver">llama.cpp Web GUI</span></div>
+  <div class="status">
+    <span id="srvLabel" style="font-size:.82rem;color:#9aa5ce;">Server: </span>
+    <span class="status-dot off" id="srvDot"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="run">🚀 运行</button>
+
+  <button class="tab" data-tab="models">📋 模型管理</button>
+  <button class="tab" data-tab="convert">🔄 模型转换</button>
+</div>
+
+<div class="main">
+
+<!-- ========== RUN PANEL ======================= -->
+<div class="panel active" id="pnl-run">
+<div id="runMsg"></div>
+<div class="form-group"><label>运行模式</label>
+  <div class="form-row">
+    <div class="form-col">
+      <select id="runMode" onchange="onModeChange()">
+        <option value="cli">命令行模式 (llama-cli)</option>
+        <option value="server">网页模式 (llama-server)</option>
+      </select>
+    </div>
+    <div class="form-col">
+      <div class="check-row">
+        <input type="checkbox" id="runUseLlamaPath" onchange="onToggleLlamaPath()">
+        <label for="runUseLlamaPath">自定义 llama.cpp 路径:</label>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="runLlamaBinPath" placeholder="llama.cpp 可执行文件目录" disabled style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="browseFolder('runLlamaBinPath')">浏览...</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="form-group"><label>模型选择</label>
+  <div style="display:flex;gap:6px;">
+    <select id="runModel" style="flex:1"></select>
+    <button class="btn btn-secondary btn-sm" onclick="refreshModels()">🔄</button>
+  </div>
+</div>
+<div class="form-group"><label>基本参数</label>
+  <div class="form-row">
+    <div class="form-col"><label for="runCtxSize">ctx-size (上下文大小)</label><input type="number" id="runCtxSize" value="65536" min="512" max="262144" step="512"></div>
+    <div class="form-col"><label for="runNgl">ngl (GPU 加速层数)</label><input type="number" id="runNgl" value="48" min="0" max="200"></div>
+    <div class="form-col" id="gCliTemp"><label for="runTemp">温度</label><input type="number" id="runTemp" value="0.7" min="0" max="5" step="0.05"></div>
+    <div class="form-col" id="gCliRp"><label for="runRepeat">重复惩罚</label><input type="number" id="runRepeat" value="1.1" min="1" max="2" step="0.01"></div>
+    <div class="form-col" id="gCliN"><label for="runN">最大生成 token (-n)</label><input type="number" id="runN" value="2048" min="1" max="65536"></div>
+    <div class="form-col" id="gSrvPort" style="display:none;"><label for="runPort">端口</label><input type="number" id="runPort" value="8081" min="1024" max="65535"></div>
+  </div>
+</div>
+<div class="form-group"><label>选项</label>
+  <div class="check-row" id="gCliMli"><input type="checkbox" id="runMli" checked><label for="runMli">多行输入模式 (-mli)</label></div>
+  <div class="check-row" id="gCliMtp"><input type="checkbox" id="runMtp"><label for="runMtp">MTP 推测解码</label></div>
+  <div class="check-row" id="gCliExtra"><input type="checkbox" id="runExtraEnabled" onchange="onToggleExtra()"><label for="runExtraEnabled">启用额外参数:</label><input type="text" id="runExtraParams" placeholder="如: --top-k 40 --top-p 0.9" disabled style="width:auto;flex:1"></div>
+</div>
+<div class="form-group">
+  <button class="btn btn-primary" id="btnPreview" onclick="togglePreview()">📋 预览命令</button>
+  <button class="btn btn-sm btn-secondary" onclick="openHelp()" style="margin-left:6px;">?</button>
+</div>
+<div id="gHelpBox" class="help-box" style="display:none;"></div>
+<div id="gCmdPreview" class="cmd-preview" style="display:none;" contenteditable="false"></div>
+<div id="gRunActions" style="display:none;margin-top:12px;">
+  <div class="btns">
+    <button class="btn btn-success" id="btnExecute" onclick="executeCommand()">▶ 确认运行</button>
+    <button class="btn btn-secondary" onclick="togglePreview()">↺ 重新生成</button>
+  </div>
+</div>
+<div id="gSrvControls" style="margin-top:16px;">
+  <div class="btns">
+    <button class="btn btn-success" id="btnSrvStart" onclick="startServer()">▶ 启动 llama-server</button>
+    <button class="btn btn-danger" id="btnSrvStop" onclick="stopServer()" style="display:none;">⏹ 停止服务器</button>
+    <button class="btn btn-secondary" id="btnSrvStatus" onclick="checkServerStatus()">🔄 刷新状态</button>
+  </div>
+  <div id="srvStatus" style="margin-top:8px;font-size:.82rem;"></div>
+  <div id="srvLogs" class="log-box" style="display:none;margin-top:8px;"></div>
+</div>
+</div>
+
+<!-- ========== MODELS PANEL ==================== -->
+<div class="panel" id="pnl-models">
+<div id="modelsMsg"></div>
+<div class="model-list">
+  <div class="model-list-left">
+    <label>已保存的模型</label>
+    <select id="modelsList" size="8" onchange="onModelSelect()"></select>
+    <div style="margin-top:6px;font-size:.75rem;color:#565f89;" id="modelsCount"></div>
+  </div>
+  <div class="model-list-right">
+    <div class="form-group"><label for="mdlName">模型名称</label><input type="text" id="mdlName" placeholder="如: gemma4_E4B"></div>
+    <div class="form-group"><label for="mdlPath">模型文件路径 (.gguf)</label>
+      <div style="display:flex;gap:6px;"><input type="text" id="mdlPath" placeholder="/home/rhys/models/model.gguf" style="flex:1"><button class="btn btn-secondary btn-sm" onclick="browseFile('mdlPath')">浏览...</button></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-primary" onclick="addModel()">➕ 添加</button>
+      <button class="btn btn-secondary" onclick="updateModel()">✏️ 更新</button>
+      <button class="btn btn-danger" onclick="deleteModel()">🗑 删除</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ========== CONVERT PANEL =================== -->
+<div class="panel" id="pnl-convert">
+<div id="convertMsg"></div>
+<div class="form-group"><label for="convLlamaPath">llama.cpp 仓库路径</label>
+  <div style="display:flex;gap:6px;"><input type="text" id="convLlamaPath" placeholder="/home/rhys/llama.cpp" style="flex:1"><button class="btn btn-secondary btn-sm" onclick="browseFolder('convLlamaPath')">浏览...</button></div>
+</div>
+<div class="form-group"><label for="convModelSrc">模型源文件路径 (HF 格式文件夹)</label>
+  <div style="display:flex;gap:6px;"><input type="text" id="convModelSrc" placeholder="HF 模型目录" style="flex:1"><button class="btn btn-secondary btn-sm" onclick="browseFolder('convModelSrc')">浏览...</button></div>
+</div>
+<div class="form-group"><label for="convLoraSrc">LoRA 源文件路径 (可留空)</label>
+  <div style="display:flex;gap:6px;"><input type="text" id="convLoraSrc" placeholder="LoRA 适配器目录 (可选)" style="flex:1"><button class="btn btn-secondary btn-sm" onclick="browseFolder('convLoraSrc')">浏览...</button></div>
+</div>
+<div class="form-group"><label for="convModelDst">输出文件路径 (.gguf)</label>
+  <div style="display:flex;gap:6px;"><input type="text" id="convModelDst" placeholder="/home/rhys/models/output.gguf" style="flex:1"><button class="btn btn-secondary btn-sm" onclick="browseSave('convModelDst')">浏览...</button></div>
+</div>
+<div class="form-group"><label for="convOuttype">--outtype (输出格式)</label>
+  <input type="text" id="convOuttype" placeholder="f16, q8_0, q4_K_M..." list="outtypeList">
+  <datalist id="outtypeList"><option value="f32"><option value="f16"><option value="bf16"><option value="q8_0"><option value="q8_1"><option value="q4_0"><option value="q4_1"><option value="q4_K_M"><option value="q4_K_S"><option value="q5_0"><option value="q5_1"><option value="q5_K_M"><option value="q5_K_S"><option value="q6_K"><option value="q2_K"><option value="q3_K_M"><option value="q3_K_S"></datalist>
+</div>
+<div class="btns">
+  <button class="btn btn-primary" onclick="convertModel()">🔄 转换模型 (HF → GGUF)</button>
+  <button class="btn btn-secondary" onclick="convertLora()">🔧 转换 LoRA (LoRA → GGUF)</button>
+</div>
+<div id="gConvCmd" class="cmd-preview" style="display:none;margin-top:16px;"></div>
+</div>
+
+</div><!-- .main -->
+
+<!-- Browse Modal -->
+<div id="browseModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;">
+<div style="background:#24283b;border-radius:10px;padding:20px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;">
+  <h3 style="color:#bb9af7;margin-bottom:12px;" id="browseTitle"></h3>
+  <div id="browsePath" style="font-size:.78rem;color:#565f89;margin-bottom:10px;"></div>
+  <div id="browseItems" style="max-height:45vh;overflow-y:auto;"></div>
+  <div class="btns" style="margin-top:12px;">
+    <button class="btn btn-secondary" onclick="closeBrowse()">取消</button>
+    <button class="btn btn-primary" id="browseSelect" onclick="selectBrowse()">选择此项</button>
+    <button class="btn btn-secondary btn-sm" onclick="browseParent()">📁 上级目录</button>
+  </div>
+</div>
+</div>
+
+<script>
+let config = null, models = [], serverRunning = false, showPreview = false;
+let browseTarget = "", browseMode = "", browseCurrentPath = "", browseSelectedPath = "";
+
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
+  await refreshAll();
+  setInterval(checkServerStatus, 5000);
+  checkServerStatus();
+});
+
+async function refreshAll() { await Promise.all([loadConfig(), loadModels()]); applyConfig(); }
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "pnl-" + name));
+
+
+}
+
+// ── Config ───────────────────────────────────────
+async function loadConfig() { try { config = await (await fetch("/api/config")).json(); } catch(e){} }
+async function saveConfig() { patchConfigFromUI(); try { await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config)}); } catch(e){} }
+
+function patchConfigFromUI() {
+  if (!config) config = {};
+  const r = config.run || {};
+  r.mode = E("runMode").value; r.model = E("runModel").value;
+  r.ctx_size = parseInt(E("runCtxSize").value)||65536; r.ngl = parseInt(E("runNgl").value)||0;
+  r.temp = parseFloat(E("runTemp").value)||0.7; r.repeat_penalty = parseFloat(E("runRepeat").value)||1.1;
+  r.max_tokens = parseInt(E("runN").value)||2048; r.port = parseInt(E("runPort").value)||8081;
+  r.mli = E("runMli").checked; r.mtp = E("runMtp").checked;
+  r.extra_enabled = E("runExtraEnabled").checked; r.extra_params = E("runExtraParams").value;
+  r.use_llama_path = E("runUseLlamaPath").checked; r.llama_bin_path = E("runLlamaBinPath").value;
+  config.run = r;
+  const c = config.convert || {};
+  c.llama_path = E("convLlamaPath").value; c.model_src = E("convModelSrc").value;
+  c.lora_src = E("convLoraSrc").value; c.model_dst = E("convModelDst").value; c.outtype = E("convOuttype").value;
+  config.convert = c;
+}
+
+function applyConfig() {
+  if (!config) return;
+  const r = config.run || {};
+  E("runMode").value = r.mode || "cli"; E("runCtxSize").value = r.ctx_size || 65536;
+  E("runNgl").value = r.ngl || 48; E("runTemp").value = r.temp || 0.7;
+  E("runRepeat").value = r.repeat_penalty || 1.1; E("runN").value = r.max_tokens || 2048;
+  E("runPort").value = r.port || 8081; E("runMli").checked = r.mli !== false;
+  E("runMtp").checked = !!r.mtp; E("runExtraEnabled").checked = !!r.extra_enabled;
+  E("runExtraParams").value = r.extra_params || ""; E("runExtraParams").disabled = !r.extra_enabled;
+  E("runUseLlamaPath").checked = !!r.use_llama_path;
+  E("runLlamaBinPath").value = r.llama_bin_path || ""; E("runLlamaBinPath").disabled = !r.use_llama_path;
+  const c = config.convert || {};
+  E("convLlamaPath").value = c.llama_path || "/home/rhys/llama.cpp";
+  E("convModelSrc").value = c.model_src || ""; E("convLoraSrc").value = c.lora_src || "";
+  E("convModelDst").value = c.model_dst || ""; E("convOuttype").value = c.outtype || "f16";
+  onModeChange();
+}
+
+function E(id) { return document.getElementById(id); }
+
+function onModeChange() {
+  const isCli = E("runMode").value === "cli";
+  ["gCliTemp","gCliRp","gCliN","gCliMli","gCliMtp","gCliExtra"].forEach(id => { const el=E(id); if(el) el.style.display=isCli?"":"none"; });
+  E("gSrvPort").style.display = isCli ? "none" : "";
+  E("gSrvControls").style.display = isCli ? "none" : "";
+  if (showPreview) generateCommand();
+}
+function onToggleLlamaPath() { E("runLlamaBinPath").disabled = !E("runUseLlamaPath").checked; if(showPreview) generateCommand(); }
+function onToggleExtra() { E("runExtraParams").disabled = !E("runExtraEnabled").checked; if(showPreview) generateCommand(); }
+
+// ── Models ──────────────────────────────────────
+async function loadModels() {
+  try { models = await (await fetch("/api/models")).json(); } catch(e) { models=[]; }
+  const sel = E("runModel"), cur = sel.value; sel.innerHTML = "";
+  models.forEach(m => { const o = document.createElement("option"); o.value = m.name; o.textContent = m.name + "  →  " + m.path; sel.appendChild(o); });
+  if (cur) sel.value = cur;
+  const lst = E("modelsList"); lst.innerHTML = "";
+  models.forEach(m => { const o = document.createElement("option"); o.value = m.name; o.textContent = m.name; lst.appendChild(o); });
+  E("modelsCount").textContent = models.length + " 个模型";
+  if (config && config.run && config.run.model) sel.value = config.run.model;
+}
+function refreshModels() { loadModels().then(() => msg("runMsg","模型列表已刷新","ok")); }
+function onModelSelect() { const m = models.find(x => x.name === E("modelsList").value); if(m) { E("mdlName").value=m.name; E("mdlPath").value=m.path; } }
+async function addModel() {
+  const name = E("mdlName").value.trim(), path = E("mdlPath").value.trim();
+  if (!name||!path) { msg("modelsMsg","名称和路径不能为空","err"); return; }
+  try {
+    const r = await fetch("/api/models",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,path})});
+    const d = await r.json(); if(d.error) { msg("modelsMsg",d.error,"err"); return; }
+    models = d.models; await loadModels(); msg("modelsMsg",'模型 "'+name+'" 已保存',"ok");
+  } catch(e) { msg("modelsMsg","请求失败: "+e,"err"); }
+}
+async function updateModel() {
+  const oldName = E("modelsList").value, name = E("mdlName").value.trim(), path = E("mdlPath").value.trim();
+  if (!oldName) { msg("modelsMsg","请先选择要编辑的模型","err"); return; }
+  if (!name||!path) { msg("modelsMsg","名称和路径不能为空","err"); return; }
+  try {
+    await fetch("/api/models/"+encodeURIComponent(oldName),{method:"DELETE"});
+    await fetch("/api/models",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,path})});
+    await loadModels(); msg("modelsMsg",'模型已更新: "'+name+'"',"ok");
+  } catch(e) { msg("modelsMsg","请求失败: "+e,"err"); }
+}
+async function deleteModel() {
+  const name = E("modelsList").value;
+  if (!name) { msg("modelsMsg","请先选择要删除的模型","err"); return; }
+  if (!confirm('确认删除 "'+name+'"？')) return;
+  try { await fetch("/api/models/"+encodeURIComponent(name),{method:"DELETE"}); await loadModels(); E("mdlName").value=""; E("mdlPath").value=""; msg("modelsMsg",'已删除',"ok"); } catch(e) { msg("modelsMsg","请求失败: "+e,"err"); }
+}
+
+// ── Commands ────────────────────────────────────
+async function generateCommand() {
+  patchConfigFromUI();
+  try {
+    const d = await (await fetch("/api/generate-command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config.run)})).json();
+    const el = E("gCmdPreview"); el.textContent = d.command; el.contentEditable = "true"; el.style.display = "";
+    E("gHelpBox").style.display = "none"; E("btnPreview").textContent = "↺ 重新生成";
+    E("gRunActions").style.display = ""; showPreview = true; await saveConfig();
+  } catch(e) { msg("runMsg","生成命令失败: "+e,"err"); }
+}
+function togglePreview() {
+  if (showPreview) { E("gCmdPreview").style.display="none"; E("gRunActions").style.display="none"; E("btnPreview").textContent="📋 预览命令"; showPreview=false; E("gHelpBox").style.display="none"; }
+  else generateCommand();
+}
+async function executeCommand() {
+  const cmd = E("gCmdPreview").textContent.trim();
+  if (!cmd) { msg("runMsg","请先生成命令","err"); return; }
+  if (E("runMode").value === "server") {
+    patchConfigFromUI();
+    try {
+      const d = await (await fetch("/api/server/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config.run)})).json();
+      if (d.error) { msg("runMsg",d.error,"err"); return; }
+      msg("runMsg",'🚀 llama-server 已启动！<a href="http://127.0.0.1:'+d.port+'" target="_blank" style="color:#9ece6a;">打开 Web UI</a> (端口 '+d.port+')',"ok");
+      checkServerStatus();
+    } catch(e) { msg("runMsg","启动失败: "+e,"err"); }
+  } else {
+    const esc = cmd.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+    E("runMsg").innerHTML = '<div class="msg msg-ok">CLI 命令已就绪：</div><div class="cmd-preview">'+esc+'</div><div class="btns"><button class="btn btn-primary" onclick="copyToClipboard()">📋 复制命令</button><button class="btn btn-secondary" onclick="openInTerminal()">🖥 在 Windows Terminal 中打开</button></div>';
+  }
+}
+function copyToClipboard() { navigator.clipboard.writeText(E("gCmdPreview").textContent.trim()).then(()=>msg("runMsg","已复制！","ok")).catch(()=>msg("runMsg","请手动复制","err")); }
+async function openInTerminal() {
+  const cmd = E("gCmdPreview").textContent.trim();
+  try{
+    const d = await (await fetch("/api/open-terminal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({command:cmd,is_wsl:true,wsl_distro:"archlinux"})})).json();
+    if(d.platform==="linux"){ msg("runMsg","在终端中粘贴运行:<br><code>"+cmd.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</code>","ok"); copyToClipboard(); }
+    else msg("runMsg","终端命令已生成","ok");
+  }catch(e){ msg("runMsg","失败: "+e,"err"); }
+}
+function openHelp() {
+  const h = E("gHelpBox"), show = !h.style.display || h.style.display === "none";
+  h.style.display = show ? "" : "none";
+  if (show) h.innerHTML = '<pre style="color:#9aa5ce;white-space:pre-wrap;font-size:.76rem;">常用参数:\n--temp N  --repeat-penalty N  --top-k N  --top-p N  --min-p N\n--lora PATH  --chat-template NAME  --rpc ADDR  --mlock\n-mli  --color auto  --flash-attn on  -cnv</pre>';
+}
+
+// ── Server lifecycle ────────────────────────────
+async function startServer() {
+  patchConfigFromUI();
+  try {
+    const d = await (await fetch("/api/server/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config.run)})).json();
+    if (d.error) { msg("runMsg",d.error,"err"); return; }
+    msg("runMsg",'🚀 llama-server 已启动！<a href="http://127.0.0.1:'+d.port+'" target="_blank" style="color:#9ece6a;">打开 Web UI</a> (PID: '+d.pid+')',"ok");
+    await checkServerStatus();
+  } catch(e) { msg("runMsg","启动失败: "+e,"err"); }
+}
+async function stopServer() {
+  const d = await (await fetch("/api/server/stop",{method:"POST"})).json();
+  msg("runMsg",d.message,d.error?"err":"ok"); await checkServerStatus();
+}
+async function checkServerStatus() {
+  try {
+    const d = await (await fetch("/api/server/status")).json();
+    serverRunning = d.running;
+    E("srvDot").className = "status-dot " + (d.running ? "on" : "off");
+    E("srvLabel").textContent = d.running ? "Server: PID " + d.pid : "Server: 未运行";
+    E("btnSrvStart").style.display = d.running ? "none" : "";
+    E("btnSrvStop").style.display = d.running ? "" : "none";
+    E("srvStatus").innerHTML = d.running ? '<span style="color:#9ece6a;">● 运行中</span> — PID '+d.pid : '<span style="color:#565f89;">● 未运行</span>';
+    if (d.logs) { E("srvLogs").textContent = d.logs; E("srvLogs").style.display = d.running ? "" : "none"; }
+  } catch(e) {}
+}
+
+// ── Convert ─────────────────────────────────────
+async function convertModel() {
+  patchConfigFromUI();
+  const d = await (await fetch("/api/convert/model",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config.convert)})).json();
+  if (d.error) { msg("convertMsg",d.error,"err"); return; }
+  E("gConvCmd").textContent = d.command; E("gConvCmd").style.display = "";
+  msg("convertMsg","命令已生成，在 WSL 终端中运行","ok"); await saveConfig();
+}
+async function convertLora() {
+  patchConfigFromUI();
+  const d = await (await fetch("/api/convert/lora",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(config.convert)})).json();
+  if (d.error) { msg("convertMsg",d.error,"err"); return; }
+  E("gConvCmd").textContent = d.command; E("gConvCmd").style.display = "";
+  msg("convertMsg","命令已生成，在 WSL 终端中运行","ok"); await saveConfig();
+}
+
+// ── File browser ────────────────────────────────
+async function browseFolder(t) { browse(t,"folder"); }
+async function browseFile(t) { browse(t,"file",".gguf"); }
+async function browseSave(t) { browse(t,"save",".gguf"); }
+async function browse(targetId, mode, ext) {
+  browseTarget = targetId; browseMode = mode;
+  await browseLoad(E(targetId).value || "/home/rhys", ext);
+  E("browseModal").style.display = "flex"; E("browseTitle").textContent = mode==="save"?"保存文件":"选择路径";
+}
+function closeBrowse() { E("browseModal").style.display = "none"; }
+async function browseLoad(path, ext) {
+  try {
+    const d = await (await fetch("/api/browse?path="+encodeURIComponent(path)+"&ext="+encodeURIComponent(ext||""))).json();
+    if (d.error) { alert(d.error); return; }
+    browseCurrentPath = d.path; browseSelectedPath = d.path;
+    E("browsePath").textContent = "📂 " + d.path;
+    let html = "";
+    if (d.parent !== null) html += '<div style="padding:4px 8px;cursor:pointer;border-radius:4px;" onclick="browseLoad(\''+d.parent.replace(/'/g,"\\'")+'\',\''+(ext||"")+'\')" onmouseover="this.style.background=\'#2f3548\'" onmouseout="this.style.background=\'\'">📁 ..</div>';
+    d.items.forEach(function(i) {
+      const ep = i.path.replace(/'/g,"\\'"), en = i.name.replace(/'/g,"\\'");
+      if (i.is_dir) html += '<div style="padding:4px 8px;cursor:pointer;border-radius:4px;" onclick="browseLoad(\''+ep+'\',\''+(ext||"")+'\')" onmouseover="this.style.background=\'#2f3548\'" onmouseout="this.style.background=\'\'">📁 '+en+'/</div>';
+      else html += '<div style="padding:4px 8px;cursor:pointer;border-radius:4px;" onclick="browseSelectedPath=\''+ep+'\';E(\'browseSelect\').textContent=\'选择: '+en+'\''+'" onmouseover="this.style.background=\'#2f3548\'" onmouseout="this.style.background=\'\'">📄 '+en+' <span style="color:#565f89;font-size:.72rem;">'+formatSize(i.size)+'</span></div>';
+    });
+    E("browseItems").innerHTML = html;
+  } catch(e) { alert("浏览失败: "+e); }
+}
+function browseParent() { browseLoad(browseCurrentPath+"/.."); }
+function selectBrowse() { E(browseTarget).value = browseMode==="folder" ? browseCurrentPath : browseSelectedPath; closeBrowse(); }
+
+// ── Utils ───────────────────────────────────────
+function msg(id, text, type) { E(id).innerHTML = '<div class="msg '+(type==="err"?"msg-err":"msg-ok")+'">'+text+'</div>'; }
+function formatSize(b) { if(!b) return ""; return b<1024?b+" B":b<1048576?(b/1024).toFixed(1)+" KB":b<1073741824?(b/1048576).toFixed(1)+" MB":(b/1073741824).toFixed(2)+" GB"; }
+</script>
+</body>
+</html>
