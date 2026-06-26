@@ -55,6 +55,9 @@
 #define ID_EDIT_LLAMA_BIN      1218
 #define ID_BTN_BROWSE_LLAMA_BIN 1219
 #define ID_BTN_HELP            1220
+#define ID_CHK_MMPROJ         1221
+#define ID_EDIT_MMPROJ         1222
+#define ID_BTN_BROWSE_MMPROJ   1223
 
 /* ========== 转换窗口控件 ID ========== */
 #define ID_EDIT_LLAMA_PATH   1301
@@ -90,6 +93,7 @@
 typedef struct {
     char name[MAX_NAME];
     char path[PATH_LEN];
+    char mmprojPath[PATH_LEN];
 } ModelInfo;
 
 /* ========== 运行配置结构 ========== */
@@ -108,6 +112,7 @@ typedef struct {
     BOOL mtp;
     BOOL useLlamaPath;
     char llamaBinPath[PATH_LEN];
+    BOOL mmprojEnabled;
 } RunConfig;
 
 /* ========== 转换配置结构 ========== */

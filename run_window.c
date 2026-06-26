@@ -23,6 +23,7 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     static HWND hLabelPort;
     static HWND hHelpText;
     static HWND hChkLlamaPath, hEditLlamaBin;
+    static HWND hChkMmproj, hEditMmproj, hBtnBrowseMmproj;
     static BOOL s_previewShown = FALSE;
 
     switch (msg) {
@@ -82,24 +83,30 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         hEditPort = CreateEdit(hwnd, L"8081", 420, 183, 80, 23, ID_EDIT_PORT);
 
         /* ======== 选项 ======== */
-        CreateGroupBox(hwnd, L"选项", 15, 285, 560, 80);
+        CreateGroupBox(hwnd, L"选项", 15, 285, 560, 115);
 
         hChkMli = CreateCheckbox(hwnd, L"多行输入模式 (-mli)", 25, 308, 175, 23, ID_CHK_MLI);
         hChkMtp = CreateCheckbox(hwnd, L"MTP 推测解码", 210, 308, 130, 23, ID_CHK_MTP);
         hChkExtra = CreateCheckbox(hwnd, L"启用额外参数:", 355, 308, 115, 23, ID_CHK_EXTRA);
         hEditExtra = CreateEdit(hwnd, L"", 470, 306, 90, 23, ID_EDIT_EXTRA);
 
+        /* mmproj 选项 (CLI 和网页模式都可用) */
+        hChkMmproj = CreateCheckbox(hwnd, L"--mmproj 多模态投影:", 25, 338, 150, 23, ID_CHK_MMPROJ);
+        wchar_t wMmprojPath[PATH_LEN] = L"";
+        hEditMmproj = CreateEdit(hwnd, wMmprojPath, 180, 336, 200, 23, ID_EDIT_MMPROJ);
+        hBtnBrowseMmproj = CreateButton(hwnd, L"浏览...", 385, 335, 65, 25, ID_BTN_BROWSE_MMPROJ);
+
         /* ======== 帮助文本 / 命令预览 (同一位置, 切换显示) ======== */
         hHelpText = CreateWindowExW(0, L"STATIC", PARAM_HELP,
             WS_CHILD | WS_VISIBLE | SS_LEFT,
-            15, 375, 560, 155, hwnd, NULL, g_hInst, NULL);
+            15, 410, 560, 120, hwnd, NULL, g_hInst, NULL);
         SendMessageW(hHelpText, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
         /* 命令预览编辑框 (与帮助文本同位置, 初始隐藏) */
         hEditCmdPreview = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
             WS_CHILD | WS_BORDER | ES_MULTILINE |
             ES_AUTOVSCROLL | WS_VSCROLL,
-            15, 375, 560, 145, hwnd,
+            15, 410, 560, 110, hwnd,
             (HMENU)(INT_PTR)ID_EDIT_CMD_PREVIEW, g_hInst, NULL);
         SendMessageW(hEditCmdPreview, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
         ShowWindow(hEditCmdPreview, SW_HIDE);
@@ -107,7 +114,7 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         /* ======== "确认运行" 按钮 (初始隐藏) ======== */
         hBtnExecute = CreateWindowExW(0, L"BUTTON", L"▶  确认运行",
             WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-            160, 530, 260, 40, hwnd,
+            160, 565, 260, 40, hwnd,
             (HMENU)(INT_PTR)ID_BTN_EXECUTE, g_hInst, NULL);
         SendMessageW(hBtnExecute, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
         ShowWindow(hBtnExecute, SW_HIDE);
@@ -115,21 +122,21 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         /* ======== 底部按钮行 ======== */
         hBtnBack = CreateWindowExW(0, L"BUTTON", L"←  返回",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            20, 585, 110, 40, hwnd,
+            20, 620, 110, 40, hwnd,
             (HMENU)(INT_PTR)ID_BTN_BACK, g_hInst, NULL);
         SendMessageW(hBtnBack, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
         hBtnPreview = CreateWindowExW(0, L"BUTTON", L"📋  预览命令",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            160, 585, 160, 40, hwnd,
+            160, 620, 160, 40, hwnd,
             (HMENU)(INT_PTR)ID_BTN_PREVIEW, g_hInst, NULL);
         SendMessageW(hBtnPreview, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-        CreateLabel(hwnd, L"llama-cli --help 查看全部参数", 340, 595, 200, 23);
+        CreateLabel(hwnd, L"llama-cli --help 查看全部参数", 340, 630, 200, 23);
 
         hBtnHelp = CreateWindowExW(0, L"BUTTON", L"?",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            530, 585, 40, 40, hwnd,
+            530, 620, 40, 40, hwnd,
             (HMENU)(INT_PTR)ID_BTN_HELP, g_hInst, NULL);
         SendMessageW(hBtnHelp, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
@@ -188,7 +195,7 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShowWindow(hLabelN, showCli);
             ShowWindow(hEditN, showCli);
             ShowWindow(hChkMli, showCli);
-            ShowWindow(hChkMtp, showCli);
+            /* MTP visible in both CLI and web modes */
             ShowWindow(hChkExtra, showCli);
             ShowWindow(hEditExtra, isCli && g_runCfg.extraEnabled ? SW_SHOW : SW_HIDE);
             ShowWindow(hHelpText, showCli);
@@ -196,6 +203,21 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ShowWindow(hLabelPort, showWeb);
             ShowWindow(hEditPort, showWeb);
         }
+
+        /* 初始化 mmproj */
+        SendMessageW(hChkMmproj, BM_SETCHECK,
+            g_runCfg.mmprojEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
+        {
+            /* 加载当前选中模型的 mmproj 路径 */
+            int curSel = SendMessageW(hComboModel, CB_GETCURSEL, 0, 0);
+            if (curSel >= 0 && curSel < g_modelCount && g_models[curSel].mmprojPath[0]) {
+                wchar_t wmp[PATH_LEN];
+                ToWide(g_models[curSel].mmprojPath, wmp, PATH_LEN);
+                SetWindowTextW(hEditMmproj, wmp);
+            }
+        }
+        ShowWindow(hEditMmproj, g_runCfg.mmprojEnabled ? SW_SHOW : SW_HIDE);
+        ShowWindow(hBtnBrowseMmproj, g_runCfg.mmprojEnabled ? SW_SHOW : SW_HIDE);
 
         break;
     }
@@ -221,7 +243,7 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ShowWindow(hLabelN, sc);
                 ShowWindow(hEditN, sc);
                 ShowWindow(hChkMli, sc);
-                ShowWindow(hChkMtp, sc);
+                /* MTP visible in both CLI and web modes */
                 ShowWindow(hChkExtra, sc);
                 ShowWindow(hHelpText, sc);
                 ShowWindow(hBtnHelp, sc);
@@ -240,6 +262,18 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     ShowWindow(hBtnExecute, SW_HIDE);
                     ShowWindow(hHelpText, SW_SHOW);
                     SetWindowTextW(hBtnPreview, L"📋  预览命令");
+                }
+            }
+            break;
+
+        /* ---- 模型选择变化: 加载对应 mmproj 路径 ---- */
+        case ID_CBO_MODEL:
+            if (code == CBN_SELCHANGE) {
+                int sel = SendMessageW(hComboModel, CB_GETCURSEL, 0, 0);
+                if (sel >= 0 && sel < g_modelCount) {
+                    wchar_t wmp[PATH_LEN];
+                    ToWide(g_models[sel].mmprojPath, wmp, PATH_LEN);
+                    SetWindowTextW(hEditMmproj, wmp);
                 }
             }
             break;
@@ -267,6 +301,34 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (code == BN_CLICKED) {
                 BOOL checked = (SendMessageW(hChkExtra, BM_GETCHECK, 0, 0) == BST_CHECKED);
                 ShowWindow(hEditExtra, checked ? SW_SHOW : SW_HIDE);
+            }
+            break;
+
+        /* ---- mmproj 复选框 ---- */
+        case ID_CHK_MMPROJ:
+            if (code == BN_CLICKED) {
+                BOOL checked = (SendMessageW(hChkMmproj, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                ShowWindow(hEditMmproj, checked ? SW_SHOW : SW_HIDE);
+                ShowWindow(hBtnBrowseMmproj, checked ? SW_SHOW : SW_HIDE);
+            }
+            break;
+
+        /* ---- 浏览 mmproj 文件 ---- */
+        case ID_BTN_BROWSE_MMPROJ:
+            if (code == BN_CLICKED) {
+                wchar_t wpath[PATH_LEN] = L"";
+                if (BrowseForFile(hwnd,
+                        L"选择 mmproj 多模态投影文件",
+                        L"GGUF 文件\0*.gguf\0所有文件\0*.*\0",
+                        wpath, PATH_LEN)) {
+                    SetWindowTextW(hEditMmproj, wpath);
+                    /* 保存到当前选中模型 */
+                    int curSel = SendMessageW(hComboModel, CB_GETCURSEL, 0, 0);
+                    if (curSel >= 0 && curSel < g_modelCount) {
+                        ToUTF8(wpath, g_models[curSel].mmprojPath, PATH_LEN);
+                        SaveModels();
+                    }
+                }
             }
             break;
 
@@ -370,6 +432,14 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 strncpy(g_runCfg.extraParams, extraParams, MAX_BUF - 1);
                 g_runCfg.useLlamaPath = useLlama;
                 strncpy(g_runCfg.llamaBinPath, llamaBin, PATH_LEN - 1);
+
+                /* mmproj */
+                BOOL useMmproj = (SendMessageW(hChkMmproj, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                wchar_t wMmproj[PATH_LEN];
+                GetWindowTextW(hEditMmproj, wMmproj, PATH_LEN);
+                char mmprojPath[PATH_LEN];
+                ToUTF8(wMmproj, mmprojPath, PATH_LEN);
+                g_runCfg.mmprojEnabled = useMmproj;
                 SaveRunConfig();
 
                 /* 构建可执行文件路径前缀 */
@@ -392,6 +462,10 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 }
 
                 /* ---- 生成命令 ---- */
+                char mmprojPart[MAX_BUF] = "";
+                if (useMmproj && mmprojPath[0]) {
+                    snprintf(mmprojPart, sizeof(mmprojPart), "--mmproj \"%s\"", mmprojPath);
+                }
                 if (isCliMode) {
                     const char* mliStr = mli ? "-mli" : "";
                     const char* mtpStr = mtp ? "--spec-type draft-mtp --spec-draft-n-max 4" : "";
@@ -399,14 +473,16 @@ LRESULT CALLBACK RunWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     snprintf(g_generatedCmd, sizeof(g_generatedCmd),
                         "%s -m \"%s\" -cnv --color auto "
                         "-ngl %s --ctx-size %s --flash-attn on "
-                        "--temp %s --repeat-penalty %s -n %s %s %s %s",
+                        "--temp %s --repeat-penalty %s -n %s %s %s %s %s",
                         cliExe, modelPath, ngl, ctxSize, temp, repeatPenalty, n,
-                        mliStr, mtpStr, extraStr);
+                        mliStr, mtpStr, extraStr, mmprojPart);
                 } else {
+                    const char* mtpStr = mtp ? "--spec-type draft-mtp --spec-draft-n-max 4" : "";
                     snprintf(g_generatedCmd, sizeof(g_generatedCmd),
                         "%s -m \"%s\" --ctx-size %s "
-                        "-ngl %s --flash-attn on --webui --port %s",
-                        serverExe, modelPath, ctxSize, ngl, port);
+                        "-ngl %s --flash-attn on --webui --port %s %s %s",
+                        serverExe, modelPath, ctxSize, ngl, port, mtpStr,
+                        mmprojPart);
                 }
 
                 /* ---- 显示预览 ---- */

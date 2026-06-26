@@ -101,6 +101,16 @@ void LoadModels(void) {
         g_modelCount = 0;
         return;
     }
+
+    /* 检测 v2 格式 (首行 "v2") 或旧格式 (首行为模型数量) */
+    int isV2 = (line[0] == 'v' && line[1] == '2');
+    if (isV2) {
+        if (!fgets(line, sizeof(line), fp)) {
+            fclose(fp);
+            g_modelCount = 0;
+            return;
+        }
+    }
     g_modelCount = atoi(line);
     if (g_modelCount > MAX_MODELS) g_modelCount = MAX_MODELS;
     if (g_modelCount < 0) g_modelCount = 0;
@@ -115,6 +125,17 @@ void LoadModels(void) {
         line[strcspn(line, "\r\n")] = '\0';
         strncpy(g_models[i].path, line, PATH_LEN - 1);
         g_models[i].path[PATH_LEN - 1] = '\0';
+
+        /* v2 格式: 第三个字段为 mmproj 路径 */
+        if (isV2) {
+            if (fgets(line, sizeof(line), fp)) {
+                line[strcspn(line, "\r\n")] = '\0';
+                strncpy(g_models[i].mmprojPath, line, PATH_LEN - 1);
+                g_models[i].mmprojPath[PATH_LEN - 1] = '\0';
+            }
+        } else {
+            g_models[i].mmprojPath[0] = '\0';
+        }
     }
     fclose(fp);
 }
@@ -131,10 +152,12 @@ void SaveModels(void) {
         MessageBoxW(NULL, msg, L"错误", MB_ICONERROR);
         return;
     }
+    fprintf(fp, "v2\n");
     fprintf(fp, "%d\n", g_modelCount);
     for (int i = 0; i < g_modelCount; i++) {
         fprintf(fp, "%s\n", g_models[i].name);
         fprintf(fp, "%s\n", g_models[i].path);
+        fprintf(fp, "%s\n", g_models[i].mmprojPath);
     }
     fflush(fp);
     fclose(fp);
@@ -158,6 +181,7 @@ void LoadRunConfig(void) {
     g_runCfg.mtp = FALSE;
     g_runCfg.useLlamaPath = FALSE;
     g_runCfg.llamaBinPath[0] = '\0';
+    g_runCfg.mmprojEnabled = FALSE;
 
     char filePath[PATH_LEN];
     MakeConfigPath(CONFIG_FILE, filePath, PATH_LEN);
@@ -166,7 +190,7 @@ void LoadRunConfig(void) {
 
     char line[MAX_BUF];
     int field = 0;
-    while (fgets(line, sizeof(line), fp) && field < 14) {
+    while (fgets(line, sizeof(line), fp) && field < 15) {
         line[strcspn(line, "\r\n")] = '\0';
         switch (field) {
             case 0: strncpy(g_runCfg.mode, line, 31); break;
@@ -183,6 +207,7 @@ void LoadRunConfig(void) {
             case 11: g_runCfg.mtp = (atoi(line) != 0); break;
             case 12: g_runCfg.useLlamaPath = (atoi(line) != 0); break;
             case 13: strncpy(g_runCfg.llamaBinPath, line, PATH_LEN - 1); break;
+            case 14: g_runCfg.mmprojEnabled = (atoi(line) != 0); break;
         }
         field++;
     }
@@ -219,6 +244,7 @@ void SaveRunConfig(void) {
     fprintf(fp, "%d\n", g_runCfg.mtp ? 1 : 0);
     fprintf(fp, "%d\n", g_runCfg.useLlamaPath ? 1 : 0);
     fprintf(fp, "%s\n", g_runCfg.llamaBinPath);
+    fprintf(fp, "%d\n", g_runCfg.mmprojEnabled ? 1 : 0);
     fflush(fp);
     fclose(fp);
 }
@@ -734,7 +760,7 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
             HWND hRun = CreateWindowExW(0, RUN_CLASS, L"Llama 运行",
                 WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-                CW_USEDEFAULT, CW_USEDEFAULT, 600, 720,
+                CW_USEDEFAULT, CW_USEDEFAULT, 600, 760,
                 NULL, NULL, g_hInst, NULL);
 
             if (!hRun) {
