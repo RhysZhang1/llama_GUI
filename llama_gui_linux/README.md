@@ -219,8 +219,7 @@ llamagui
 ├── .server.pid            # llama-server 进程 PID（运行时）
 ├── .server.log            # llama-server 日志（运行时）
 ├── llamagui               # 一键启动脚本
-├── README.md              # 英文文档
-└── README_CN.md           # 中文文档（本文件）
+└── README.md           # 文档
 ```
 
 ---
